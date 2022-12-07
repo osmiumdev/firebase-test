@@ -178,16 +178,69 @@ const eventConverter = {
 };
 
 //Auth
-function loginUser(username, password) {
-  return bool;
+function createUser(username, password, callback) {
+  //Creates a user with the given username and password, and returns the result to the callback function.
+  firebase
+    .auth()
+    .createUserWithEmailAndPassword(username, password)
+    .then((userCredential) => {
+      console.log(userCredential.user.email + 'created and signed in!');
+      callback(true, userCredential.user.email);
+    })
+    .catch((error) => {
+      console.log('Error creating user!');
+      console.log(error.code);
+      console.log(error.message);
+      callback(false);
+    });
 }
 
-function logoutUser() {
-
+function signinUser(username, password, callback) {
+  //Signs in the user, and returns the result to the callback function.
+  firebase
+    .auth()
+    .signInWithEmailAndPassword(username, password)
+    .then((userCredential) => {
+      console.log(userCredential.user.email + ' signed in!');
+      callback(true, userCredential.user.email);
+    })
+    .catch((error) => {
+      console.log('Error signing in user!');
+      console.log(error.code);
+      console.log(error.message);
+      callback(false);
+    });
 }
 
+function logoutUser(callback) {
+  //Logs out the currently signed in user.
+  firebase
+    .auth()
+    .signOut()
+    .then(() => {
+      console.log('Signed Out User');
+      callback(true, 'null');
+    })
+    .catch((error) => {
+      console.log(error.code);
+      console.log(error.message);
+      callback(false);
+    });
+}
+
+function loginCallback(bool, data) {
+  //If the login/logout functions worked successfully, this function is calledback to do things.
+  //This is for the testing script.
+  console.log('Auth Result: ' + bool);
+  if (bool) {
+    document.getElementById('signedInUser').innerHTML = data;
+  } else {
+    document.getElementById('signedInUser').innerHTML = 'null';
+  }
+}
+/////////
 //Testing
-
+/////////
 testDate = new Date(2022, 12, 6, 20, 46, 30);
 testComment = new commentObject('osmiumdev', testDate, 'comment text!');
 testRSVPs = ['user1', 'user2', 'user3'];
@@ -203,21 +256,6 @@ testEvent = new eventObject(
   [testComment, testComment]
 );
 
-initializeDatabase();
-console.log(testEvent);
-console.log(eventConverter.toFirestore(testEvent));
-//createEvent(testEvent);
-//retrieveAllEvents();
-
-function printEvents(events) {
-  console.log('Function Calledback!');
-  console.log(events);
-}
-
-//retrieveAllEvents(printEvents);
-
-//returnCallbackAfterEventsLoaded(printEvents);
-
 var selectedEvent = null;
 
 function printEvents(events) {
@@ -226,42 +264,32 @@ function printEvents(events) {
   for (var i = 0; i < events.length; i++) {
     var li = document.createElement('li');
     li.appendChild(document.createTextNode(events[i].doc));
-    li.setAttribute("onclick", "alert('blah');")
+    li.setAttribute('onclick', "alert('blah');");
     list.appendChild(li);
   }
 }
 
-function selectEvent(events){
-
+function selectEvent(events) {
   var span = document.getElementById('selectedEvent');
   var eventId = document.getElementById('eventId').value;
 
-  for(var i = 0; i < events.length; i++){
-
-    if(events[i].doc == eventId){
-
+  for (var i = 0; i < events.length; i++) {
+    if (events[i].doc == eventId) {
       selectedEvent = events[i];
       span.innerHTML = events[i].doc;
-      console.log("Event Selected: " + eventId);
+      console.log('Event Selected: ' + eventId);
       console.log(events[i]);
       return;
-
     }
-
   }
 
   selectedEvent = null;
-  span.innerHTML = "null";
-  console.log("No Event Found");
-
+  span.innerHTML = 'null';
+  console.log('No Event Found');
 }
 
-function deleteAllEvents(events){
-
-  for(var i = 0; i < events.length; i++){
-
+function deleteAllEvents(events) {
+  for (var i = 0; i < events.length; i++) {
     deleteEvent(events[i]);
-
   }
-
 }

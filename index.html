@@ -28,7 +28,27 @@
       <br />
 
       <span id="selectedEvent">null</span>
+
+      <br />
+      <br />
+
+      <input type="text" id="username" /><input type="text" id="password" />
+      <br />
+      <button onclick="createUser(
+        document.getElementById('username').value, document.getElementById('password').value, loginCallback
+      )">Create User</button>
+      <button onclick="signinUser(
+        document.getElementById('username').value, document.getElementById('password').value, loginCallback
+      )">Login User</button>
+      <button onclick="logoutUser(loginCallback)">Logout User</button>
+
+      <br />
+
+      <span id="signedInUser">null</span>
     </div>
     <script src="js/data.js"></script>
+    <script>
+      initializeDatabase();
+    </script>
   </body>
 </html>
