@@ -1,3 +1,6 @@
+//Firebase Interactor Script v0.7
+//Utilizes the Callback concept to avoid using promises, awaits, etc.
+
 const firebaseConfig = {
   apiKey: 'AIzaSyDFVgbRrE_jaSay31ZArEUvr_N-9rHwkKI',
 
@@ -21,56 +24,42 @@ function initializeDatabase() {
   db = firebase.firestore();
 }
 
-function returnCallbackAfterEventsLoaded(func) {
-  //Utilizing the callback concept, we pass the event array to the function
-  //passed as a parameter in this function. This averts the need to utilize await.
+function retrieveAllEvents(callback) {
+  //Passes an array of eventObjects to the callback function.
 
   var returnable = [];
   db.collection('events')
     .get()
     .then((querySnapshot) => {
-      var map = querySnapshot.docs.map((doc) => doc.data());
+      var map = querySnapshot.docs.map((doc) => {
+        return { id: doc.id, data: doc.data() };
+      });
+      console.log(map);
 
       for (var i = 0; i < map.length; i++) {
-        returnable.push(eventConverter.fromFirestoreBasic(map[i]));
+        var eventObject = map[i]['data'];
+        eventObject.doc = map[i]['id'];
+        returnable.push(eventConverter.fromFirestoreBasic(eventObject));
       }
 
-      func(returnable);
+      callback(returnable);
     });
 }
 
-function retrieveAllEvents() {
-  //This function will return an array containing all eventObjects in the firestore.
-
-  var returnable = [];
-  db.collection('events')
-    .get()
-    .then((querySnapshot) => {
-      var map = querySnapshot.docs.map((doc) => doc.data());
-
-      for (var i = 0; i < map.length; i++) {
-        returnable.push(eventConverter.fromFirestoreBasic(map[i]));
-      }
-
-      return returnable;
-    });
-}
-
-function createEvent(event) {
-  //Pass an eventObject created with the eventObject() function here,
-  //and it will be saved to the firestore.
-
+function addEvent(event) {
+  //Adds an eventObject to the firestore.
   db.collection('events').doc().withConverter(eventConverter).set(event);
 }
 
 function deleteEvent(eventObject) {
-  //Deletes an event given the corresponding event name
-  var events = retrieveAllEvents();
+  //Deletes an eventObject from the firestore.
+  db.collection('events').doc(eventObject['doc']).delete();
 }
 
 class eventObject {
   //Event object.
-  constructor(name, sDate, eDate, color, desc, owner, rsvps, comms) {
+  constructor(doc, name, sDate, eDate, color, desc, owner, rsvps, comms) {
+    this.doc = doc;
     this.name = name; //String Event Name
     this.sDate = sDate; //DateObject
     this.eDate = eDate; //DateObject
@@ -88,18 +77,6 @@ class commentObject {
     this.poster = poster; //Username of the original poster.
     this.pDate = pDate; //Date and time object of who posted it.
     this.text = text; //Comment string.
-  }
-}
-
-class betterDate {
-  //24 hour time
-  constructor(Mon, dd, yyyy, hh, mm, ss) {
-    this.month = Mon;
-    this.day = dd;
-    this.year = yyyy;
-    this.hour = hh;
-    this.minute = mm;
-    this.second = ss;
   }
 }
 
@@ -132,21 +109,22 @@ function fromFirestoreToCommentArray(comments) {
 }
 
 function dateToFirestore(date) {
+  //Utilizes built-in Date object
   return {
-    month: date.month,
-    day: date.day,
-    year: date.year,
-    hour: date.hour,
-    minute: date.minute,
-    second: date.second,
+    month: date.getDate(),
+    day: date.getDay(),
+    year: date.getFullYear(),
+    hour: date.getHours(),
+    minute: date.getMinutes(),
+    second: date.getSeconds(),
   };
 }
 
 function firestoreToDate(date) {
-  return new betterDate(
+  return new Date(
+    date.year,
     date.month,
     date.day,
-    date.year,
     date.hour,
     date.minute,
     date.second
@@ -157,6 +135,7 @@ const eventConverter = {
   //Object for FireStore which converts an Event object into compatible FireStore document, and vice versa.
   toFirestore: function (event) {
     return {
+      doc: event.doc,
       name: event.name,
       sDate: dateToFirestore(event.sDate),
       eDate: dateToFirestore(event.eDate),
@@ -171,6 +150,7 @@ const eventConverter = {
   fromFirestore: function (snapshot, options) {
     const data = snapshot.data(options);
     return new eventObject(
+      data.doc,
       data.name,
       firestoreToDate(data.sDate),
       firestoreToDate(data.eDate),
@@ -184,6 +164,7 @@ const eventConverter = {
 
   fromFirestoreBasic: function (data) {
     return new eventObject(
+      data.doc,
       data.name,
       firestoreToDate(data.sDate),
       firestoreToDate(data.eDate),
@@ -201,14 +182,17 @@ function loginUser(username, password) {
   return bool;
 }
 
-function logoutUser() {}
+function logoutUser() {
+
+}
 
 //Testing
 
-testDate = new betterDate(12, 6, 2022, 20, 46, 30);
+testDate = new Date(2022, 12, 6, 20, 46, 30);
 testComment = new commentObject('osmiumdev', testDate, 'comment text!');
 testRSVPs = ['user1', 'user2', 'user3'];
 testEvent = new eventObject(
+  '',
   'Event Name',
   testDate,
   testDate,
@@ -230,4 +214,54 @@ function printEvents(events) {
   console.log(events);
 }
 
-returnCallbackAfterEventsLoaded(printEvents);
+//retrieveAllEvents(printEvents);
+
+//returnCallbackAfterEventsLoaded(printEvents);
+
+var selectedEvent = null;
+
+function printEvents(events) {
+  var list = document.getElementById('eventList');
+  list.innerHTML = '';
+  for (var i = 0; i < events.length; i++) {
+    var li = document.createElement('li');
+    li.appendChild(document.createTextNode(events[i].doc));
+    li.setAttribute("onclick", "alert('blah');")
+    list.appendChild(li);
+  }
+}
+
+function selectEvent(events){
+
+  var span = document.getElementById('selectedEvent');
+  var eventId = document.getElementById('eventId').value;
+
+  for(var i = 0; i < events.length; i++){
+
+    if(events[i].doc == eventId){
+
+      selectedEvent = events[i];
+      span.innerHTML = events[i].doc;
+      console.log("Event Selected: " + eventId);
+      console.log(events[i]);
+      return;
+
+    }
+
+  }
+
+  selectedEvent = null;
+  span.innerHTML = "null";
+  console.log("No Event Found");
+
+}
+
+function deleteAllEvents(events){
+
+  for(var i = 0; i < events.length; i++){
+
+    deleteEvent(events[i]);
+
+  }
+
+}
