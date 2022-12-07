@@ -19,19 +19,48 @@ function initializeDatabase() {
   //and other scripts are ready to acquire data (events)
   firebase.initializeApp(firebaseConfig);
   db = firebase.firestore();
+}
 
+function returnCallbackAfterEventsLoaded(func) {
+  //Utilizing the callback concept, we pass the event array to the function
+  //passed as a parameter in this function. This averts the need to utilize await.
+
+  var returnable = [];
+  db.collection('events')
+    .get()
+    .then((querySnapshot) => {
+      var map = querySnapshot.docs.map((doc) => doc.data());
+
+      for (var i = 0; i < map.length; i++) {
+        returnable.push(eventConverter.fromFirestoreBasic(map[i]));
+      }
+
+      func(returnable);
+    });
 }
 
 function retrieveAllEvents() {
   //This function will return an array containing all eventObjects in the firestore.
+
+  var returnable = [];
+  db.collection('events')
+    .get()
+    .then((querySnapshot) => {
+      var map = querySnapshot.docs.map((doc) => doc.data());
+
+      for (var i = 0; i < map.length; i++) {
+        returnable.push(eventConverter.fromFirestoreBasic(map[i]));
+      }
+
+      return returnable;
+    });
 }
 
 function createEvent(event) {
   //Pass an eventObject created with the eventObject() function here,
   //and it will be saved to the firestore.
 
-  db.collection("events").doc().withConverter(eventConverter).set(event)
-
+  db.collection('events').doc().withConverter(eventConverter).set(event);
 }
 
 function deleteEvent(eventObject) {
@@ -53,29 +82,25 @@ class eventObject {
   }
 }
 
-class comment {
+class commentObject {
   //Comment object.
   constructor(poster, pDate, text) {
     this.poster = poster; //Username of the original poster.
     this.pDate = pDate; //Date and time object of who posted it.
     this.text = text; //Comment string.
-
   }
 }
 
-class date {
+class betterDate {
   //24 hour time
-  constructor(mm, dd, yyyy, hh, mm, ss) {
-
-    this.month = mm;
+  constructor(Mon, dd, yyyy, hh, mm, ss) {
+    this.month = Mon;
     this.day = dd;
     this.year = yyyy;
     this.hour = hh;
     this.minute = mm;
     this.second = ss;
-
   }
-
 }
 
 function commentArrayToFirestore(comments) {
@@ -95,10 +120,11 @@ function commentArrayToFirestore(comments) {
 
 function fromFirestoreToCommentArray(comments) {
   //Converts a firestore comment array into an array of comment objects.
-  var returnable = {};
+  var returnable = [];
+
   for (var i = 0; i < comments.length; i++) {
     returnable.push(
-      new comment(comments[i].poster, comments[i].pDate, comments[i].text)
+      new commentObject(comments[i].poster, comments[i].pDate, comments[i].text)
     );
   }
 
@@ -107,13 +133,24 @@ function fromFirestoreToCommentArray(comments) {
 
 function dateToFirestore(date) {
   return {
-    date: date.date,
-    time: date.time,
+    month: date.month,
+    day: date.day,
+    year: date.year,
+    hour: date.hour,
+    minute: date.minute,
+    second: date.second,
   };
 }
 
 function firestoreToDate(date) {
-  return new date(date.date, date.time);
+  return new betterDate(
+    date.month,
+    date.day,
+    date.year,
+    date.hour,
+    date.minute,
+    date.second
+  );
 }
 
 const eventConverter = {
@@ -144,6 +181,19 @@ const eventConverter = {
       fromFirestoreToCommentArray(data.comms)
     );
   },
+
+  fromFirestoreBasic: function (data) {
+    return new eventObject(
+      data.name,
+      firestoreToDate(data.sDate),
+      firestoreToDate(data.eDate),
+      data.color,
+      data.desc,
+      data.owner,
+      data.rsvps,
+      fromFirestoreToCommentArray(data.comms)
+    );
+  },
 };
 
 //Auth
@@ -155,10 +205,8 @@ function logoutUser() {}
 
 //Testing
 
-testDate = new date('12/06/2022', '13:50:30');
-t
-
-testComment = new comment('osmiumdev', testDate, 'comment text!');
+testDate = new betterDate(12, 6, 2022, 20, 46, 30);
+testComment = new commentObject('osmiumdev', testDate, 'comment text!');
 testRSVPs = ['user1', 'user2', 'user3'];
 testEvent = new eventObject(
   'Event Name',
@@ -173,5 +221,13 @@ testEvent = new eventObject(
 
 initializeDatabase();
 console.log(testEvent);
-console.log(eventConverter.toFirestore(testEvent))
-createEvent(testEvent);
+console.log(eventConverter.toFirestore(testEvent));
+//createEvent(testEvent);
+//retrieveAllEvents();
+
+function printEvents(events) {
+  console.log('Function Calledback!');
+  console.log(events);
+}
+
+returnCallbackAfterEventsLoaded(printEvents);
